@@ -1,6 +1,14 @@
 spring:
   application:
     name: challenge-backend
+  datasource:
+    # NON_KEYWORDS=YEAR: H2 2.x reserves YEAR, which is used as a column name in movie
+    url: jdbc:h2:mem:challenge;NON_KEYWORDS=YEAR
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: none
+
+app:
+  movies:
+    csv-location: classpath:data/movielist.csv
