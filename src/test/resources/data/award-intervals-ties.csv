@@ -1,0 +1,10 @@
+year;title;studios;producers;winner
+2000;Movie A;Studio;Alpha;yes
+2001;Movie B;Studio;Alpha;yes
+2010;Movie C;Studio;Alpha and Beta;yes
+2011;Movie D;Studio;Beta;
+2019;Movie E;Studio;Beta;yes
+2015;Movie F;Studio;Gamma, Delta;yes
+2016;Movie G;Studio;Gamma;yes
+2020;Movie H;Studio;Delta;yes
+2005;Movie I;Studio;Epsilon;yes

@@ -29,7 +29,9 @@ REST API (Richardson maturity level 2) over the Golden Raspberry Awards "Worst P
 - **H2 in-memory with `NON_KEYWORDS=YEAR`** in the datasource URL: `YEAR` is reserved in H2 2.x and `movie.year` is an unquoted column. Removing it breaks the V1 migration.
 - **Startup data load:** `movie.csv.MovieDataLoader` is an `ApplicationRunner`, so it runs after context refresh, i.e. after Flyway has migrated. It parses the CSV set by `app.movies.csv-location` (default `classpath:data/movielist.csv`) and inserts producers then movies in one transaction; it skips if `movie` already has rows.
 - **CSV format:** `year;title;studios;producers;winner`, `winner` is `yes` or empty, studios are not persisted. Producers are separated by `,`, ` and ` or `, and ` (`MovieCsvParser.PRODUCER_SEPARATOR`); the same name in different movies maps to one `producer` row.
-- Integration tests are named `*IT` and use `@SpringBootTest` against the real CSV. Current baseline: 206 movies, 42 winners, 359 distinct producers.
+- **Award intervals endpoint:** `GET /producers/award-intervals` (`award` package). `MovieRepository.findProducerWinsOrderByProducerAndYear` fetches (producer, year) of winning movies in one JPQL projection query; `AwardIntervalService` walks it once to build consecutive-win intervals and returns every producer tied on min and on max. Producers with a single win are excluded; no intervals → empty lists.
+- Integration tests are named `*IT` and use `@SpringBootTest` (+ `@AutoConfigureMockMvc` from `org.springframework.boot.webmvc.test.autoconfigure` for HTTP). Baseline for the real CSV: 206 movies, 42 winners, 359 distinct producers; min = Joel Silver 1 (1990→1991), max = Matthew Vaughn 13 (2002→2015).
+- A test that loads a different CSV (`app.movies.csv-location`) must also set its own `spring.datasource.url` (see `AwardIntervalTiesIT`): the in-memory DB name is fixed, so contexts would otherwise share it and the loader would skip the import.
 - JPA conventions for this repo are in `skills/spring-data-jpa/SKILL.md` (Jakarta imports, no entity records, DTO records out of controllers, LAZY relations, no `findAll()` in endpoints). It is not under `.claude/skills`, so read it explicitly before persistence work.
 
 ## Agent interaction log
@@ -88,4 +90,21 @@ Steps executed:
 7. `./gradlew build` green (5 tests). Logs confirm order: Flyway applies V1 → application started → "Loaded 206 movies and 359 producers".
 8. Committed as `1f12790`.
 
-Remaining from the spec: awards-interval endpoint, its integration tests, README, keeping this log current.
+### 5. Update CLAUDE.md
+
+Prompt: "Atualize o CLAUDE.md com o prompt e os passos executados" — added the architecture notes and this log; read `skills/spring-data-jpa/SKILL.md` and linked it here. Committed as `dfa3b06`.
+
+### 6. Award intervals endpoint
+
+Prompt: "agora implemente o endpoint de intervalo de prêmios"
+
+Steps executed:
+
+1. Computed the expected result straight from the CSV with an awk pipeline (independent of the Java code): min Joel Silver 1 (1990→1991), max Matthew Vaughn 13 (2002→2015).
+2. Added `ProducerWin` record and a JPQL constructor-projection query in `MovieRepository` (winners only, ordered by producer and year) to avoid loading entities / N+1.
+3. Added `AwardIntervalService` (single pass over sorted wins, keeps all ties), response records `AwardIntervalsResponse` / `ProducerInterval`, and `AwardIntervalController` (`GET /producers/award-intervals`).
+4. Added `AwardIntervalControllerIT` (strict JSON match against the real CSV, `POST` → 405) and `AwardIntervalTiesIT` with fixture `src/test/resources/data/award-intervals-ties.csv` (ties on min and max, ignored non-winner, single-win producer), on its own H2 database.
+5. `./gradlew build` green (8 tests).
+6. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed on `main`.
+
+Remaining from the spec: README with run/test instructions.
