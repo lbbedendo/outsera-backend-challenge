@@ -67,13 +67,27 @@ Run a single test class:
 ./gradlew test --tests 'com.outsera.challenge_backend.award.AwardIntervalControllerIT'
 ```
 
-The HTML report is written to `build/reports/tests/test/index.html`.
+The HTML test report is written to `build/reports/tests/test/index.html`.
 
 | Test | What it checks |
 | --- | --- |
 | `AwardIntervalControllerIT` | Full JSON response of the endpoint for `movielist.csv`, and `405` on `POST` |
 | `AwardIntervalTiesIT` | Ties on min and max, non-winners ignored and single-win producers excluded, using the fixture `src/test/resources/data/award-intervals-ties.csv` |
 | `MovieDataLoaderIT` | CSV import: 206 movies, 42 winners, 359 distinct producers, and producer names split on `,` / `and` |
+| `MovieRepositoryIT` | Repository queries on the Flyway schema: winning producer years ordered by producer then year, non-winners ignored, and the winner count |
+
+### Test coverage
+
+Coverage is measured with [JaCoCo](https://www.jacoco.org/jacoco/). The report is generated automatically after `./gradlew test`:
+
+- HTML: `build/reports/jacoco/test/html/index.html`
+- XML (for CI tools such as Sonar or Codecov): `build/reports/jacoco/test/jacocoTestReport.xml`
+
+To regenerate it without re-running unchanged tests:
+
+```bash
+./gradlew jacocoTestReport
+```
 
 ## Configuration
 

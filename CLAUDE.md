@@ -12,9 +12,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew test --tests 'com.outsera.challenge_backend.movie.csv.MovieDataLoaderIT'                       # one class
 ./gradlew test --tests 'com.outsera.challenge_backend.movie.csv.MovieDataLoaderIT.loadsEveryMovieFromCsv'  # one method
 ./gradlew bootRun                                 # run locally
+./gradlew jacocoTestReport                        # coverage report (also runs automatically after test)
 ```
 
-There is no linter or formatter configured. `README.md` holds the user-facing run/test/API docs; keep it in sync when the endpoint, tests or configuration change.
+There is no linter or formatter configured. JaCoCo (plugin, `toolVersion = '0.8.14'`, the first release with official Java 25 support) writes HTML/XML coverage to `build/reports/jacoco/test/`; `test` is `finalizedBy` `jacocoTestReport`. `README.md` holds the user-facing run/test/API docs; keep it in sync when the endpoint, tests or configuration change.
 
 ## Goal
 
@@ -162,6 +163,17 @@ Steps executed:
 3. Wrote `MovieRepositoryIT` (`@DataJpaTest`, real Flyway schema, own H2 database `movie-repository`): ordering by producer then year with a multi-producer movie, non-winners ignored, empty result without winners, and `countByWinnerTrue`.
 4. Mutation check: changed the query to `order by m.year, p.name` — the test still passed because the fixture produced the same order either way. Moved Beta's solo win to 1999 so year-first ordering differs; the broken query then failed the test. Restored the original query.
 5. `./gradlew test --rerun-tasks` green (12 tests).
-6. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed on `main`.
+6. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed as `b1fdb9b`.
+
+### 11. JaCoCo coverage
+
+Prompt: "agora adicione a biblioteca JaCoCo para cobertura de testes. Depois rode todos os testes novamente"
+
+Steps executed:
+
+1. Added Gradle's built-in `jacoco` plugin (no new entries in `dependencies`). Checked the `jacocoAgent` configuration: Gradle 9.7.1 defaults to JaCoCo 0.8.14, which supports Java 25; pinned `toolVersion = '0.8.14'` so a Gradle upgrade cannot change it silently.
+2. Made `test` `finalizedBy` `jacocoTestReport`, with HTML and XML reports enabled.
+3. `./gradlew test --rerun-tasks` green (12 tests). Coverage: 86% lines (93/108), 83% branches (15/18). Gaps: `MovieCsvParser` error paths (malformed line, invalid year, I/O failure), unused entity getters, and `main()`.
+4. Prompt: "atualize o README e o CLAUDE.md e faça commit" — documented coverage reports (and the missing `MovieRepositoryIT` row) in `README.md`, updated this file and committed on `main`.
 
 All spec items are now covered; pushing to a remote git host is left to the user.
