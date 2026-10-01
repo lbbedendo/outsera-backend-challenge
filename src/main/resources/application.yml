@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: challenge-backend
+  jpa:
+    hibernate:
+      ddl-auto: none
