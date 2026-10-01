@@ -41,6 +41,18 @@ Response `200 OK` for the provided CSV:
 
 Other HTTP methods on this resource return `405 Method Not Allowed`.
 
+## H2 Console
+
+While the application is running, the in-memory database can be browsed at `http://localhost:8080/h2-console`:
+
+| Field | Value |
+| --- | --- |
+| JDBC URL | `jdbc:h2:mem:challenge;NON_KEYWORDS=YEAR` |
+| User Name | `sa` |
+| Password | *(empty)* |
+
+Keep `NON_KEYWORDS=YEAR` in the URL: `YEAR` is a reserved word in H2 and is used as a column name in the `movie` table.
+
 ## Running the tests
 
 The project has integration tests only. They start the full application and assert against the data in the provided CSV.

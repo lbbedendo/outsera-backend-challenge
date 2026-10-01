@@ -27,6 +27,7 @@ REST API (Richardson maturity level 2) over the Golden Raspberry Awards "Worst P
 - Config is `src/main/resources/application.yml` (YAML, not `.properties`).
 - **Schema is owned by Flyway** (`src/main/resources/db/migration`), `ddl-auto: none`. Entity IDs use the DB sequences `movie_seq` / `producer_seq` with `allocationSize = 1` to match `INCREMENT BY 1`.
 - **H2 in-memory with `NON_KEYWORDS=YEAR`** in the datasource URL: `YEAR` is reserved in H2 2.x and `movie.year` is an unquoted column. Removing it breaks the V1 migration.
+- **H2 Console** is enabled at `/h2-console` (JDBC URL `jdbc:h2:mem:challenge;NON_KEYWORDS=YEAR`, user `sa`, empty password).
 - **Startup data load:** `movie.csv.MovieDataLoader` is an `ApplicationRunner`, so it runs after context refresh, i.e. after Flyway has migrated. It parses the CSV set by `app.movies.csv-location` (default `classpath:data/movielist.csv`) and inserts producers then movies in one transaction; it skips if `movie` already has rows.
 - **CSV format:** `year;title;studios;producers;winner`, `winner` is `yes` or empty, studios are not persisted. Producers are separated by `,`, ` and ` or `, and ` (`MovieCsvParser.PRODUCER_SEPARATOR`); the same name in different movies maps to one `producer` row.
 - **Award intervals endpoint:** `GET /producers/award-intervals` (`award` package). `MovieRepository.findProducerWinsOrderByProducerAndYear` fetches (producer, year) of winning movies in one JPQL projection query; `AwardIntervalService` walks it once to build consecutive-win intervals and returns every producer tied on min and on max. Producers with a single win are excluded; no intervals → empty lists.
@@ -116,6 +117,16 @@ Steps executed:
 1. Ran `./gradlew bootRun` and called the endpoint with `curl` to confirm the documented response and the `405` on `POST`.
 2. Wrote `README.md`: requirements (JDK 25 only), how to run, endpoint docs with the real response, how to run all/one test class and where the report is, what each IT covers, the `app.movies.csv-location` property, and a pointer to this log.
 3. Verified the single-class test command and `bootRun --args='--app.movies.csv-location=file:...'` with the ties fixture.
-4. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed on `main`.
+4. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed as `8e48903`.
+
+### 8. H2 Console
+
+Prompt: "Habilite o H2 Console no application.yml do projeto"
+
+Steps executed:
+
+1. Set `spring.h2.console.enabled: true` and `path: /h2-console` in `application.yml` (the `spring-boot-h2console` dependency was already present).
+2. Ran `./gradlew bootRun`: `/h2-console/` returned `200` and the log showed "H2 console available at '/h2-console'"; `./gradlew build` still green.
+3. Prompt: "atualize o README e o CLAUDE.md e faça commit" — documented console access in `README.md` and here, committed on `main`.
 
 All spec items are now covered; pushing to a remote git host is left to the user.
