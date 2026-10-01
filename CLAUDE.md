@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew bootRun                                 # run locally
 ```
 
-There is no linter or formatter configured.
+There is no linter or formatter configured. `README.md` holds the user-facing run/test/API docs; keep it in sync when the endpoint, tests or configuration change.
 
 ## Goal
 
@@ -105,6 +105,17 @@ Steps executed:
 3. Added `AwardIntervalService` (single pass over sorted wins, keeps all ties), response records `AwardIntervalsResponse` / `ProducerInterval`, and `AwardIntervalController` (`GET /producers/award-intervals`).
 4. Added `AwardIntervalControllerIT` (strict JSON match against the real CSV, `POST` → 405) and `AwardIntervalTiesIT` with fixture `src/test/resources/data/award-intervals-ties.csv` (ties on min and max, ignored non-winner, single-win producer), on its own H2 database.
 5. `./gradlew build` green (8 tests).
-6. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed on `main`.
+6. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed as `2d5ffab`.
 
-Remaining from the spec: README with run/test instructions.
+### 7. README
+
+Prompt: "crie o README com instruções para rodar o projeto e os testes"
+
+Steps executed:
+
+1. Ran `./gradlew bootRun` and called the endpoint with `curl` to confirm the documented response and the `405` on `POST`.
+2. Wrote `README.md`: requirements (JDK 25 only), how to run, endpoint docs with the real response, how to run all/one test class and where the report is, what each IT covers, the `app.movies.csv-location` property, and a pointer to this log.
+3. Verified the single-class test command and `bootRun --args='--app.movies.csv-location=file:...'` with the ties fixture.
+4. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed on `main`.
+
+All spec items are now covered; pushing to a remote git host is left to the user.
