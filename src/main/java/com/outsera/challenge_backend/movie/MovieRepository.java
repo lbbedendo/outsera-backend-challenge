@@ -9,10 +9,11 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
 
 	long countByWinnerTrue();
 
-	@Query("""
-			select new com.outsera.challenge_backend.movie.ProducerWin(p.name, m.year)
-			from Movie m
-			join m.producers p
+	@Query(nativeQuery = true, value = """
+			select p.name as producer, m.year as year
+			from movie m
+			join movie_producer mp on mp.movie_id = m.id
+			join producer p on p.id = mp.producer_id
 			where m.winner = true
 			order by p.name, m.year
 			""")

@@ -30,7 +30,7 @@ REST API (Richardson maturity level 2) over the Golden Raspberry Awards "Worst P
 - **H2 Console** is enabled at `/h2-console` (JDBC URL `jdbc:h2:mem:challenge;NON_KEYWORDS=YEAR`, user `sa`, empty password).
 - **Startup data load:** `movie.csv.MovieDataLoader` is an `ApplicationRunner`, so it runs after context refresh, i.e. after Flyway has migrated. It parses the CSV set by `app.movies.csv-location` (default `classpath:data/movielist.csv`) and inserts producers then movies in one transaction; it skips if `movie` already has rows.
 - **CSV format:** `year;title;studios;producers;winner`, `winner` is `yes` or empty, studios are not persisted. Producers are separated by `,`, ` and ` or `, and ` (`MovieCsvParser.PRODUCER_SEPARATOR`); the same name in different movies maps to one `producer` row.
-- **Award intervals endpoint:** `GET /producers/award-intervals` (`award` package). `MovieRepository.findProducerWinsOrderByProducerAndYear` fetches (producer, year) of winning movies in one JPQL projection query; `AwardIntervalService` walks it once to build consecutive-win intervals and returns every producer tied on min and on max. Producers with a single win are excluded; no intervals → empty lists.
+- **Award intervals endpoint:** `GET /producers/award-intervals` (`award` package). `MovieRepository.findProducerWinsOrderByProducerAndYear` fetches (producer, year) of winning movies in one native SQL query mapped straight to the `ProducerWin` record — the column aliases `producer` / `year` must match the record component names; `AwardIntervalService` walks it once to build consecutive-win intervals and returns every producer tied on min and on max. Producers with a single win are excluded; no intervals → empty lists.
 - Integration tests are named `*IT` and use `@SpringBootTest` (+ `@AutoConfigureMockMvc` from `org.springframework.boot.webmvc.test.autoconfigure` for HTTP). Baseline for the real CSV: 206 movies, 42 winners, 359 distinct producers; min = Joel Silver 1 (1990→1991), max = Matthew Vaughn 13 (2002→2015).
 - A test that loads a different CSV (`app.movies.csv-location`) must also set its own `spring.datasource.url` (see `AwardIntervalTiesIT`): the in-memory DB name is fixed, so contexts would otherwise share it and the loader would skip the import.
 - JPA conventions for this repo are in `skills/spring-data-jpa/SKILL.md` (Jakarta imports, no entity records, DTO records out of controllers, LAZY relations, no `findAll()` in endpoints). It is not under `.claude/skills`, so read it explicitly before persistence work.
@@ -127,6 +127,25 @@ Steps executed:
 
 1. Set `spring.h2.console.enabled: true` and `path: /h2-console` in `application.yml` (the `spring-boot-h2console` dependency was already present).
 2. Ran `./gradlew bootRun`: `/h2-console/` returned `200` and the log showed "H2 console available at '/h2-console'"; `./gradlew build` still green.
-3. Prompt: "atualize o README e o CLAUDE.md e faça commit" — documented console access in `README.md` and here, committed on `main`.
+3. Prompt: "atualize o README e o CLAUDE.md e faça commit" — documented console access in `README.md` and here, committed as `062d597`.
+
+### 9. Native SQL for producer wins
+
+Prompt: "Converta a Query JPA no arquivo .../MovieRepository.java para uma consulta SQL nativa." with the user-provided SQL:
+
+```sql
+select p.name, m.year
+from movie m
+join movie_producer mp on mp.movie_id = m.id
+join producer p on p.id = mp.producer_id
+where m.winner = true
+order by p.name, m.year
+```
+
+Steps executed:
+
+1. Replaced the JPQL constructor expression in `MovieRepository.findProducerWinsOrderByProducerAndYear` with `@Query(nativeQuery = true)` using the user's SQL, only adding the aliases `as producer` / `as year` so Spring Data maps the columns to the `ProducerWin` record by name.
+2. `./gradlew build` green (8 tests): the strict JSON assertions confirm the result is unchanged.
+3. Prompt: "Rode todos os testes e atualize o CLAUDE.md" — `./gradlew test --rerun-tasks` green (8 tests: `MovieDataLoaderIT` 4, `AwardIntervalControllerIT` 2, `AwardIntervalTiesIT` 1, `ChallengeBackendApplicationTests` 1); updated the architecture note and this log.
 
 All spec items are now covered; pushing to a remote git host is left to the user.
