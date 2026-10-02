@@ -75,6 +75,7 @@ The HTML test report is written to `build/reports/tests/test/index.html`.
 | `AwardIntervalTiesIT` | Ties on min and max, non-winners ignored and single-win producers excluded, using the fixture `src/test/resources/data/award-intervals-ties.csv` |
 | `MovieDataLoaderIT` | CSV import: 206 movies, 42 winners, 359 distinct producers, and producer names split on `,` / `and` |
 | `MovieRepositoryIT` | Repository queries on the Flyway schema: winning producer years ordered by producer then year, non-winners ignored, and the winner count |
+| `MovieCsvImportIT` | Startup with an invalid CSV fails with the offending line (wrong column count, non-numeric year) or a read error (missing file); blank lines are skipped. Fixtures in `src/test/resources/data/` |
 
 ### Test coverage
 

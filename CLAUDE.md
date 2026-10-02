@@ -35,6 +35,7 @@ REST API (Richardson maturity level 2) over the Golden Raspberry Awards "Worst P
 - Integration tests are named `*IT` and use `@SpringBootTest` (+ `@AutoConfigureMockMvc` from `org.springframework.boot.webmvc.test.autoconfigure` for HTTP). Baseline for the real CSV: 206 movies, 42 winners, 359 distinct producers; min = Joel Silver 1 (1990→1991), max = Matthew Vaughn 13 (2002→2015).
 - Repository tests (`MovieRepositoryIT`) use `@DataJpaTest` + `@AutoConfigureTestDatabase(replace = NONE)`: the default replacement datasource lacks `NON_KEYWORDS=YEAR`, so V1 would fail. The CSV loader is not in the JPA slice, so these tests build their own rows (rolled back per test). Fixtures must make wrong orderings observable — e.g. a producer sorted later by name must have an earlier year.
 - AssertJ (3.27.7) comes managed through the Boot test starters; do not add it or other test dependencies to `build.gradle`.
+- Startup-failure tests (`MovieCsvImportIT`) start the app with `SpringApplicationBuilder` and pass overrides as `run("--key=value")` args: `SpringApplicationBuilder.properties(...)` are *default* properties and lose to `application.yml`. Exceptions thrown by an `ApplicationRunner` propagate unwrapped from `run()` in Boot 4 (no `IllegalStateException` wrapper).
 - A test that loads a different CSV (`app.movies.csv-location`) must also set its own `spring.datasource.url` (see `AwardIntervalTiesIT`): the in-memory DB name is fixed, so contexts would otherwise share it and the loader would skip the import.
 - JPA conventions for this repo are in `skills/spring-data-jpa/SKILL.md` (Jakarta imports, no entity records, DTO records out of controllers, LAZY relations, no `findAll()` in endpoints). It is not under `.claude/skills`, so read it explicitly before persistence work.
 
@@ -174,6 +175,19 @@ Steps executed:
 1. Added Gradle's built-in `jacoco` plugin (no new entries in `dependencies`). Checked the `jacocoAgent` configuration: Gradle 9.7.1 defaults to JaCoCo 0.8.14, which supports Java 25; pinned `toolVersion = '0.8.14'` so a Gradle upgrade cannot change it silently.
 2. Made `test` `finalizedBy` `jacocoTestReport`, with HTML and XML reports enabled.
 3. `./gradlew test --rerun-tasks` green (12 tests). Coverage: 86% lines (93/108), 83% branches (15/18). Gaps: `MovieCsvParser` error paths (malformed line, invalid year, I/O failure), unused entity getters, and `main()`.
-4. Prompt: "atualize o README e o CLAUDE.md e faça commit" — documented coverage reports (and the missing `MovieRepositoryIT` row) in `README.md`, updated this file and committed on `main`.
+4. Prompt: "atualize o README e o CLAUDE.md e faça commit" — documented coverage reports (and the missing `MovieRepositoryIT` row) in `README.md`, updated this file and committed as `8583705` (amended to fix the JaCoCo/Java 25 wording).
+
+### 12. CSV parser error tests
+
+Prompt: "escreva o teste de integração para os erros do parser"
+
+Steps executed:
+
+1. Added fixtures: `data/invalid/wrong-column-count.csv`, `data/invalid/invalid-year.csv` (year `198O`) and `data/with-blank-lines.csv`.
+2. Wrote `MovieCsvImportIT`: starts the full application (no web server, unique H2 database per run) with each CSV and asserts the exact startup failure, or that blank lines are skipped.
+3. First run: all 4 failed because the app loaded the default CSV — builder `properties(...)` are defaults overridden by `application.yml`. Switched to command-line args.
+4. Second run: 3 failed because the assertions expected the runner exception to be wrapped; Boot 4 rethrows it as is. Asserted on the thrown exception directly.
+5. `./gradlew test --rerun-tasks` green (16 tests). Coverage: `MovieCsvParser` 100% lines / 88% branches (was 79% / 62%); total 92% lines / 94% branches. Only uncovered branch: the filter dropping empty producer names.
+6. Prompt: "atualize o README e o CLAUDE.md e faça commit" — added the test to `README.md`, updated this file and committed on `main`.
 
 All spec items are now covered; pushing to a remote git host is left to the user.
