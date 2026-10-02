@@ -200,6 +200,23 @@ Steps executed:
 2. Wrote `award/AwardIntervalSingleWinsIT` (own H2 database, same pattern as `AwardIntervalTiesIT`): asserts 3 winning movies were loaded, so empty lists are meaningful, then a strict JSON match of `{"min": [], "max": []}`.
 3. `./gradlew test --rerun-tasks` green (17 tests).
 4. Mutation check: replaced `where m.winner = true` with `where 1 = 1` in `MovieRepository` — the test failed; restored the original query.
-5. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed on `main` (`README.md` not changed).
+5. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed as `943d7bf` (`README.md` not changed).
+
+### 14. Single producer with two wins (user-written test, reviewed)
+
+Prompt: "Adicionei mais um cenário de teste: data/award-intervals-one-consecutive-win.csv e AwardIntervalOneConsecutiveWinIT. Revise, rode todos os testes novamente"
+
+Steps executed:
+
+1. Reviewed the user's test (copy of `AwardIntervalSingleWinsIT` with Movie B turned into a win, so Alpha won 2000 and 2001) and ran `./gradlew test --rerun-tasks`: green (18 tests).
+2. Review findings: the `.as(...)` message was copied ("empty lists prove nothing") and wrong here; a 1-year interval cannot catch an interval computed as a constant or as "adjacent years"; "consecutive win" in the name reads like consecutive years (the spec means consecutive wins of the producer); the expected JSON mixed tabs and spaces. Also, the staged copy of both files was the original single-wins copy — committing without re-adding would have recorded the wrong content.
+
+Prompt: "aplique os ajustes, atualize o CLAUDE.md e faça commit"
+
+1. Renamed to `award/AwardIntervalSingleProducerIT` and `data/award-intervals-single-producer.csv` (removed the old staged files with `git rm -f`, since the index held stale content).
+2. Fixture: Alpha's second win moved to 2004 (new row `Movie H`), keeping Alpha's 2001/2002 and Beta's 2002 nominations, so counting nominations would add intervals. Expected `min` = `max` = Alpha, interval 4, 2000→2004.
+3. Fixed the `.as(...)` message and Javadoc, and indented the expected JSON with spaces only.
+4. `./gradlew test --rerun-tasks` green (18 tests). Mutation check (`where 1 = 1` instead of `where m.winner = true`) made the test fail; query restored.
+5. Updated this file and committed on `main` (`README.md` not changed).
 
 All spec items are now covered; pushing to a remote git host is left to the user.
