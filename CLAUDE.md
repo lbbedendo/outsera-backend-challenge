@@ -188,6 +188,18 @@ Steps executed:
 3. First run: all 4 failed because the app loaded the default CSV — builder `properties(...)` are defaults overridden by `application.yml`. Switched to command-line args.
 4. Second run: 3 failed because the assertions expected the runner exception to be wrapped; Boot 4 rethrows it as is. Asserted on the thrown exception directly.
 5. `./gradlew test --rerun-tasks` green (16 tests). Coverage: `MovieCsvParser` 100% lines / 88% branches (was 79% / 62%); total 92% lines / 94% branches. Only uncovered branch: the filter dropping empty producer names.
-6. Prompt: "atualize o README e o CLAUDE.md e faça commit" — added the test to `README.md`, updated this file and committed on `main`.
+6. Prompt: "atualize o README e o CLAUDE.md e faça commit" — added the test to `README.md`, updated this file and committed as `48a60cc`.
+
+### 13. No producer with more than one win
+
+Prompt: "Faça um novo teste de integração para cobrir o cenário onde não há nenhum produtor com mais de uma nova vitória. Gere um arquivo csv específico para esse teste e crie um novo arquivo no diretório ./src/test/java/com/outsera/challenge_backend/award/"
+
+Steps executed:
+
+1. Added fixture `src/test/resources/data/award-intervals-single-wins.csv`: every producer has at most one win; Alpha, Beta and Epsilon also have non-winning movies one year before/after their win (would create intervals if nominations were counted), Beta and Gamma share a winning movie, Delta is only nominated.
+2. Wrote `award/AwardIntervalSingleWinsIT` (own H2 database, same pattern as `AwardIntervalTiesIT`): asserts 3 winning movies were loaded, so empty lists are meaningful, then a strict JSON match of `{"min": [], "max": []}`.
+3. `./gradlew test --rerun-tasks` green (17 tests).
+4. Mutation check: replaced `where m.winner = true` with `where 1 = 1` in `MovieRepository` — the test failed; restored the original query.
+5. Prompt: "atualize o CLAUDE.md e faça commit" — updated this file and committed on `main` (`README.md` not changed).
 
 All spec items are now covered; pushing to a remote git host is left to the user.
