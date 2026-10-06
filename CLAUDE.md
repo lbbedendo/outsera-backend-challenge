@@ -31,7 +31,7 @@ REST API (Richardson maturity level 2) over the Golden Raspberry Awards "Worst P
 - **H2 Console** is enabled at `/h2-console` (JDBC URL `jdbc:h2:mem:challenge;NON_KEYWORDS=YEAR`, user `sa`, empty password).
 - **Startup data load:** `movie.csv.MovieDataLoader` is an `ApplicationRunner`, so it runs after context refresh, i.e. after Flyway has migrated. It parses the CSV set by `app.movies.csv-location` (default `classpath:data/movielist.csv`) and inserts producers then movies in one transaction; it skips if `movie` already has rows.
 - **CSV format:** `year;title;studios;producers;winner`, `winner` is `yes` or empty, studios are not persisted. Producers are separated by `,`, ` and ` or `, and ` (`MovieCsvParser.PRODUCER_SEPARATOR`); the same name in different movies maps to one `producer` row.
-- **Award intervals endpoint:** `GET /producers/award-intervals` (`award` package). `MovieRepository.findProducerWinsOrderByProducerAndYear` fetches (producer, year) of winning movies in one native SQL query mapped straight to the `ProducerWin` record — the column aliases `producer` / `year` must match the record component names; `AwardIntervalService` walks it once to build consecutive-win intervals and returns every producer tied on min and on max. Producers with a single win are excluded; no intervals → empty lists.
+- **Award intervals endpoint:** `GET /producers/award-intervals` (`award` package). `MovieRepository.findProducerWinsOrderByProducerAndYear` fetches (producer, year) of winning movies in one native SQL query mapped straight to the `ProducerWin` record — the column aliases `producer` / `year` must match the record component names; `AwardIntervalService` computes everything in a **single loop**: since rows are sorted by producer then year, consecutive wins of a producer are adjacent; each interval updates the `min`/`max` lists on the fly (smaller → clear and add, equal → add; mirrored for max). The checks are separate `if`s, not `else if`, so the first interval enters both lists. Keep it single-pass — no intermediate list of all intervals, no extra stream passes. Producers with a single win are excluded; no intervals → empty lists.
 - Integration tests are named `*IT` and use `@SpringBootTest` (+ `@AutoConfigureMockMvc` from `org.springframework.boot.webmvc.test.autoconfigure` for HTTP). Baseline for the real CSV: 206 movies, 42 winners, 359 distinct producers; min = Joel Silver 1 (1990→1991), max = Matthew Vaughn 13 (2002→2015).
 - Repository tests (`MovieRepositoryIT`) use `@DataJpaTest` + `@AutoConfigureTestDatabase(replace = NONE)`: the default replacement datasource lacks `NON_KEYWORDS=YEAR`, so V1 would fail. The CSV loader is not in the JPA slice, so these tests build their own rows (rolled back per test). Fixtures must make wrong orderings observable — e.g. a producer sorted later by name must have an earlier year.
 - AssertJ (3.27.7) comes managed through the Boot test starters; do not add it or other test dependencies to `build.gradle`.
@@ -217,6 +217,51 @@ Prompt: "aplique os ajustes, atualize o CLAUDE.md e faça commit"
 2. Fixture: Alpha's second win moved to 2004 (new row `Movie H`), keeping Alpha's 2001/2002 and Beta's 2002 nominations, so counting nominations would add intervals. Expected `min` = `max` = Alpha, interval 4, 2000→2004.
 3. Fixed the `.as(...)` message and Javadoc, and indented the expected JSON with spaces only.
 4. `./gradlew test --rerun-tasks` green (18 tests). Mutation check (`where 1 = 1` instead of `where m.winner = true`) made the test fail; query restored.
-5. Updated this file and committed on `main` (`README.md` not changed).
+5. Updated this file and committed as `97cc456` (`README.md` not changed).
+
+### 15. README for the new award tests
+
+Prompt: "atualize o README e faça commit" — added `AwardIntervalSingleWinsIT` and `AwardIntervalSingleProducerIT` to the README test table and stated that `min`/`max` are empty when no producer has two wins. Committed as `4cddae1`.
+
+### 16. Fewer loops in `AwardIntervalService`: manual 3-loop attempt, then a single loop
+
+Prompt: "O método "consecutiveWinIntervals" na classe "AwardIntervalService" está fazendo 5 loops para calcular o menor e o maior intervalo. Analise a minha solução implementada na classe AwardIntervalService. O objetivo é diminuir a quantidade de loops"
+
+Starting point — the original implementation made **5 passes**:
+
+1. loop building the list of all consecutive-win intervals;
+2. stream for `min`;
+3. stream for `max`;
+4. stream filtering the intervals equal to `min`;
+5. stream filtering the intervals equal to `max`.
+
+**First attempt (written manually by the user): 3 passes.** The building loop also tracked `min` (start `Integer.MAX_VALUE`) and `max` (start `-1`) and returned them with the full interval list in a new public record `ConsecutiveWinIntervals(int min, int max, List<ProducerInterval> intervals)`; `findMinAndMaxIntervals` still ran two filter streams over that list. Steps executed by the agent:
+
+1. Ran `./gradlew test --rerun-tasks` on the user's version: green (18 tests), so the attempt was correct, including empty results and an interval of 0.
+2. Review findings:
+   - still 3 passes plus an intermediate list holding every interval; `min`/`max` lists can be maintained inside the loop itself;
+   - `ConsecutiveWinIntervals` was a public type for an internal detail;
+   - `max = -1` relied on intervals never being negative; `Integer.MIN_VALUE` is explicit and symmetric;
+   - the whole file had been re-indented from tabs to 4 spaces (project uses tabs), so the diff covered the entire file;
+   - `ConsecutiveWinIntervals.java` was staged as an empty record (`AM`): committing without re-adding would not compile.
+3. Proposed a single-loop version.
+
+Prompt: "Aplique a solução de um único loop e rode os testes"
+
+**Optimization: 1 pass.** Steps executed:
+
+1. Rewrote `findMinAndMaxIntervals` as one loop over the sorted wins that keeps `min`/`max` lists: smaller interval → update bound, clear list; equal → add (mirrored for max). Separate `if`s so the first interval enters both lists; bounds start at `Integer.MAX_VALUE` / `Integer.MIN_VALUE`. Output order is unchanged (producer, then year), so the strict JSON tests still apply.
+2. Removed `ConsecutiveWinIntervals.java` (never committed; no remaining references) and restored tab indentation.
+3. `./gradlew test --rerun-tasks` green (18 tests). JaCoCo: `AwardIntervalService` 100% lines (27/27) and 100% branches (12/12) — every path (different producer, new min, min tie, new max, max tie) is exercised.
+
+| Version | Passes over the data | Intermediate structures |
+| --- | --- | --- |
+| Original | 5 (1 loop + 4 streams) | list of all intervals |
+| User's manual attempt | 3 (1 loop + 2 streams) | list of all intervals + `ConsecutiveWinIntervals` record |
+| Final | 1 loop | none besides the `min` / `max` result lists |
+
+All versions are O(n) in the number of wins (42 winning movies in the CSV), so the gain is mostly clarity and memory rather than runtime.
+
+Prompt: "atualize o CLAUDE.md. Deixe explícito a primeira tentativa manual com 3 loops e a posterior otimização para um único loop" — updated the architecture note and this log (not committed).
 
 All spec items are now covered; pushing to a remote git host is left to the user.
